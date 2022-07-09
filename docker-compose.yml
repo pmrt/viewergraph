@@ -1,0 +1,28 @@
+version: "3.9"
+services:
+  db:
+    image: clickhouse/clickhouse-server
+    ports:
+      - "${DB_PORT}:${DB_PORT}"
+    volumes:
+      - ./.volumes/clickhouse:/var/lib/clickhouse
+      - ./.volumes/clickhouse-logs:/var/log/clickhouse-server
+    networks:
+      - servernet
+
+  vgserver:
+    environment:
+      DB_HOST: db
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME}
+      DB_PORT: ${DB_PORT}
+      DEBUG: ${DEBUG}
+    depends_on:
+      - db
+    build: .
+    networks:
+      - servernet
+
+networks:
+  servernet:
