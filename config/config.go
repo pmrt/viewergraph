@@ -70,14 +70,31 @@ func Env[T SupportStringconv](key string, def T) T {
 }
 
 var (
-	DBHost               string
-	DBUser               string
-	DBPass               string
-	DBPort               string
-	DBName               string
-	DBMaxIdleConns       int
-	DBMaxOpenConns       int
-	DBDialTimeoutSeconds int
+	ClickhouseHost                   string
+	ClickhousePort                   string
+	ClickhouseUser                   string
+	ClickhousePassword               string
+	ClickhouseDBName                 string
+	ClickhouseMaxIdleConns           int
+	ClickhouseMaxOpenConns           int
+	ClickhouseConnTimeoutSeconds     int
+	ClickhouseConnMaxLifetimeMinutes int
+	ClickhouseMigVersion             int
+	ClickhouseMigPath                string
+
+	PostgresHost                   string
+	PostgresPort                   string
+	PostgresUser                   string
+	PostgresPassword               string
+	PostgresDBName                 string
+	PostgresMaxIdleConns           int
+	PostgresMaxOpenConns           int
+	PostgresConnTimeoutSeconds     int
+	PostgresConnMaxLifetimeMinutes int
+	PostgresMigVersion             int
+	PostgresMigPath                string
+
+	SkipMigrations bool
 
 	APIPort string
 
@@ -97,14 +114,31 @@ func LoadVars() {
 
 	l.Info().Msg("reading environment variables")
 
-	DBHost = Env("DB_HOST", "127.0.0.1")
-	DBPort = Env("DB_PORT", "8123")
-	DBUser = Env("DB_USER", "default")
-	DBPass = Env("DB_PASS", "")
-	DBName = Env("DB_NAME", "default")
-	DBMaxIdleConns = Env("DB_MAX_IDLE_CONS", 5)
-	DBMaxOpenConns = Env("DB_MAX_OPEN_CONS", 10)
-	DBDialTimeoutSeconds = Env("DB_DIAL_TIMEOUT_SECONDS", 60)
+	ClickhouseHost = Env("CLICKHOUSE_HOST", "127.0.0.1")
+	ClickhousePort = Env("CLICKHOUSE_PORT", "8123")
+	ClickhouseUser = Env("CLICKHOUSE_USER", "default")
+	ClickhousePassword = Env("CLICKHOUSE_PASSWORD", "")
+	ClickhouseDBName = Env("CLICKHOUSE_DB_NAME", "default")
+	ClickhouseMaxIdleConns = Env("CLICKHOUSE_MAX_IDLE_CONNS", 5)
+	ClickhouseMaxOpenConns = Env("CLICKHOUSE_MAX_OPEN_CONNS", 10)
+	ClickhouseConnMaxLifetimeMinutes = Env("CLICKHOUSE_CONN_MAX_LIFETIME_MINUTES", 60)
+	ClickhouseConnTimeoutSeconds = Env("CLICKHOUSE_CONN_TIMEOUT_SECONDS", 60)
+	ClickhouseMigVersion = Env("CLICKHOUSE_MIG_VERSION", 1)
+	ClickhouseMigPath = Env("CLICKHOUSE_MIG_PATH", "database/clickhouse/migrations")
+
+	PostgresHost = Env("POSTGRES_HOST", "127.0.0.1")
+	PostgresPort = Env("POSTGRES_PORT", "5432")
+	PostgresUser = Env("POSTGRES_USER", "vg")
+	PostgresPassword = Env("POSTGRES_PASSWORD", "unsafepassword")
+	PostgresDBName = Env("POSTGRES_DB_NAME", "vg")
+	PostgresMaxIdleConns = Env("POSTGRES_MAX_IDLE_CONNS", 5)
+	PostgresMaxOpenConns = Env("POSTGRES_MAX_OPEN_CONNS", 10)
+	PostgresConnMaxLifetimeMinutes = Env("POSTGRES_CONN_MAX_LIFETIME_MINUTES", 60)
+	PostgresConnTimeoutSeconds = Env("POSTGRES_CONN_TIMEOUT_SECONDS", 60)
+	PostgresMigVersion = Env("POSTGRES_MIG_VERSION", 1)
+	PostgresMigPath = Env("POSTGRES_MIG_VERSION", "database/postgres/migrations")
+
+	SkipMigrations = Env("SKIP_MIGRATIONS", false)
 
 	Debug = Env("DEBUG", false)
 
