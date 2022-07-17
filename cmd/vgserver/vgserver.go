@@ -5,7 +5,7 @@ import (
 
 	cfg "github.com/pmrt/viewergraph/config"
 	"github.com/pmrt/viewergraph/database"
-	"github.com/pmrt/viewergraph/database/clickhouse"
+	// "github.com/pmrt/viewergraph/database/clickhouse"
 	"github.com/pmrt/viewergraph/database/postgres"
 	l "github.com/rs/zerolog/log"
 )
@@ -19,25 +19,25 @@ func main() {
 
 	l.Info().Msg("setting up database connection")
 
-	l.Info().Msg("=> setting up clickhouse")
-	database.New(clickhouse.New(
-		&database.StorageOptions{
-			StorageHost:     cfg.ClickhouseHost,
-			StoragePort:     cfg.ClickhousePort,
-			StorageUser:     cfg.ClickhouseUser,
-			StoragePassword: cfg.ClickhousePassword,
-			StorageDbName:   cfg.ClickhouseDBName,
-
-			StorageMaxIdleConns:    cfg.ClickhouseMaxIdleConns,
-			StorageMaxOpenConns:    cfg.ClickhouseMaxOpenConns,
-			StorageConnMaxLifetime: time.Duration(cfg.ClickhouseConnMaxLifetimeMinutes) * time.Minute,
-			StorageConnTimeout:     time.Duration(cfg.ClickhouseConnTimeoutSeconds) * time.Second,
-
-			MigrationVersion: cfg.ClickhouseMigVersion,
-			MigrationPath:    cfg.ClickhouseMigPath,
-
-			DebugMode: cfg.Debug,
-		}))
+	// l.Info().Msg("=> setting up clickhouse")
+	// database.New(clickhouse.New(
+	// 	&database.StorageOptions{
+	// 		StorageHost:     cfg.ClickhouseHost,
+	// 		StoragePort:     cfg.ClickhousePort,
+	// 		StorageUser:     cfg.ClickhouseUser,
+	// 		StoragePassword: cfg.ClickhousePassword,
+	// 		StorageDbName:   cfg.ClickhouseDBName,
+	//
+	// 		StorageMaxIdleConns:    cfg.ClickhouseMaxIdleConns,
+	// 		StorageMaxOpenConns:    cfg.ClickhouseMaxOpenConns,
+	// 		StorageConnMaxLifetime: time.Duration(cfg.ClickhouseConnMaxLifetimeMinutes) * time.Minute,
+	// 		StorageConnTimeout:     time.Duration(cfg.ClickhouseConnTimeoutSeconds) * time.Second,
+	//
+	// 		MigrationVersion: cfg.ClickhouseMigVersion,
+	// 		MigrationPath:    cfg.ClickhouseMigPath,
+	//
+	// 		DebugMode: cfg.Debug,
+	// 	}))
 	l.Info().Msg("=> setting up postgres")
 	database.New(postgres.New(
 		&database.StorageOptions{
