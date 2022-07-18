@@ -9,6 +9,8 @@ import "database/sql"
 type Helix struct {
 	handleStreamOnline  func(evt *EventStreamOnline)
 	handleStreamOffline func(evt *EventStreamOffline)
+
+	handleRevocation func(evt *WebhookRevokePayload)
 }
 
 // OnStreamOnline sets the StreamOnline handler. The same event may be triggered
@@ -27,8 +29,8 @@ func (hx *Helix) OnStreamOffline(cb func(evt *EventStreamOffline)) {
 	hx.handleStreamOffline = cb
 }
 
-func (hx *Helix) OnRevocation() {
-
+func (hx *Helix) OnRevocation(cb func(evt *WebhookRevokePayload)) {
+	hx.handleRevocation = cb
 }
 
 type Storage interface {

@@ -65,22 +65,8 @@ func (evt *WebhookHeaders) Valid(secret []byte) bool {
 }
 
 type WebhookNotificationPayload struct {
-	Subscription struct {
-		ID        string `json:"id"`
-		Status    string `json:"status"`
-		Type      string `json:"type"`
-		Version   string `json:"version"`
-		Cost      int    `json:"cost"`
-		Condition struct {
-			BroadcasterUserID string `json:"broadcaster_user_id"`
-		}
-		Transport struct {
-			Method   string `json:"method"`
-			Callback string `json:"callback"`
-		}
-		CreatedAt time.Time `json:"created_at"`
-	} `json:"subscription"`
-	Event struct {
+	Subscription *Subscription `json:"subscription"`
+	Event        struct {
 		ID                   string    `json:"id"`
 		Type                 string    `json:"type"`
 		StartedAt            time.Time `json:"started_at"`
@@ -91,22 +77,28 @@ type WebhookNotificationPayload struct {
 }
 
 type WebhookVerificationPayload struct {
-	Challenge    string `json:"challenge"`
-	Subscription struct {
-		ID        string `json:"id"`
-		Status    string `json:"status"`
-		Type      string `json:"type"`
-		Version   string `json:"version"`
-		Cost      int    `json:"cost"`
-		Condition struct {
-			BroadcasterUserID string `json:"broadcaster_user_id"`
-		}
-		Transport struct {
-			Method   string `json:"method"`
-			Callback string `json:"callback"`
-		}
-		CreatedAt time.Time `json:"created_at"`
-	} `json:"subscription"`
+	Challenge    string        `json:"challenge"`
+	Subscription *Subscription `json:"subscription"`
+}
+
+type WebhookRevokePayload struct {
+	Subscription *Subscription `json:"subscription"`
+}
+
+type Subscription struct {
+	ID        string `json:"id"`
+	Status    string `json:"status"`
+	Type      string `json:"type"`
+	Version   string `json:"version"`
+	Cost      int    `json:"cost"`
+	Condition struct {
+		BroadcasterUserID string `json:"broadcaster_user_id"`
+	}
+	Transport struct {
+		Method   string `json:"method"`
+		Callback string `json:"callback"`
+	}
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type WebhookHandler struct {
@@ -162,14 +154,18 @@ func (h *WebhookHandler) handler(c *fiber.Ctx) error {
 	case WebhookEventVerification:
 		var resp *WebhookVerificationPayload
 		if err := c.BodyParser(&resp); err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "Invalid notification body")
+			return fiber.NewError(fiber.StatusBadRequest, "Invalid verification body")
 		}
 		if resp.Challenge == "" {
 			return fiber.NewError(fiber.StatusBadRequest, "Empty challenge")
 		}
 		return c.SendString(resp.Challenge)
 	case WebhookEventRevocation:
-		// TODO - check revocation and re-sub if it is a tracked channel
+		var resp *WebhookRevokePayload
+		if err := c.BodyParser(&resp); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "Invalid revocation")
+		}
+		h.hx.handleRevocation(resp)
 	default:
 		return fiber.NewError(fiber.StatusBadRequest, "Unknown Twitch-Eventsub-Message-Type header")
 	}

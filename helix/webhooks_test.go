@@ -125,7 +125,10 @@ func TestWebhookStreamOnline(t *testing.T) {
 	req.Header.Set(WebhookHeaderSignature, "sha256=135326f1ca01bb9ef7bb656053ce5a35e61a57ada77dc6705326c92d12c62060")
 	req.Header.Set(WebhookHeaderType, WebhookEventNotification)
 
-	resp, _ := app.Test(req)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -264,7 +267,10 @@ func TestWebhookVerification(t *testing.T) {
 	req.Header.Set(WebhookHeaderSignature, "sha256=876c54205d7c1ccb6966106190026ac2fcd6457a1d1010b6e7017b921a1fb4fd")
 	req.Header.Set(WebhookHeaderType, WebhookEventVerification)
 
-	resp, _ := app.Test(req)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -278,5 +284,68 @@ func TestWebhookVerification(t *testing.T) {
 	want := "pogchamp-kappa-360noscope-vohiyo"
 	if string(b) != "pogchamp-kappa-360noscope-vohiyo" {
 		t.Fatalf("expected body to be %s, got %s instead", want, b)
+	}
+}
+
+func TestWebhookRevocation(t *testing.T) {
+	var body = []byte(`{
+    "subscription": {
+      "id": "f1c2a387-161a-49f9-a165-0f21d7a4e1c4",
+      "status": "authorization_revoked",
+      "type": "channel.follow",
+      "cost": 1,
+      "version": "1",
+      "condition": {
+        "broadcaster_user_id": "12826"
+      },
+      "transport": {
+        "method": "webhook",
+        "callback": "https://example.com/webhooks/callback"
+      },
+      "created_at": "2019-11-16T10:11:12.123Z"
+    }
+  }`)
+
+	var revokedEvt *WebhookRevokePayload
+	hx := New()
+	hx.OnRevocation(func(evt *WebhookRevokePayload) {
+		t.Log("entering")
+		revokedEvt = evt
+	})
+
+	h := &WebhookHandler{
+		secret: secret,
+		hx:     hx,
+	}
+	app := fiber.New()
+	app.Post("/webhook", h.handler)
+
+	req := httptest.NewRequest("POST", "http://localhost:7123/webhook", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(WebhookHeaderID, "f1c2a387-161a-49f9-a165-0f21d7a4e1c4")
+	req.Header.Set(WebhookHeaderTimestamp, "2019-11-16T10:11:12.123Z")
+	req.Header.Set(WebhookHeaderSignature, "sha256=af10d7b0b3ac2708a168f6471b8e71fbfe8ede81b480f4f3c7d240e6faf56208")
+	req.Header.Set(WebhookHeaderType, WebhookEventRevocation)
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("\nexpected status code to be 200, got %d\nbody: %s", resp.StatusCode, b)
+	}
+	t.Log(revokedEvt)
+
+	if revokedEvt.Subscription.Status != "authorization_revoked" {
+		t.Fatalf(
+			"expected subscription status to be authorization_revoked, got %s",
+			revokedEvt.Subscription.Status,
+		)
 	}
 }
