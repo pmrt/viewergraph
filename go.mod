@@ -6,6 +6,7 @@ require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.2.0 // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/cloudflare/golz4 v0.0.0-20150217214814-ef862a3cdc58 // indirect
+	github.com/go-test/deep v1.0.8 // indirect
 	github.com/gofiber/fiber/v2 v2.35.0 // indirect
 	github.com/golang-migrate/migrate/v4 v4.15.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect

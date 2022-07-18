@@ -17,19 +17,19 @@ const (
 // Twitch Events
 // See https://dev.twitch.tv/docs/eventsub/eventsub-reference#events
 
-type BroadcasterDetails struct {
-	BroadcasterUserID    string `json:"broadcaster_user_id"`
-	BroadcasterUserLogin string `json:"broadcaster_user_login"`
-	BroadcasterUserName  string `json:"broadcaster_user_name"`
-}
-
 type EventStreamOnline struct {
 	ID        string    `json:"id"`
 	Type      string    `json:"type"`
 	StartedAt time.Time `json:"stated_at"`
-	BroadcasterDetails
+	*Broadcaster
 }
 
 type EventStreamOffline struct {
-	BroadcasterDetails
+	*Broadcaster
+}
+
+type Broadcaster struct {
+	ID       string `json:"broadcaster_user_id"`
+	Login    string `json:"broadcaster_user_login"`
+	Username string `json:"broadcaster_user_name"`
 }

@@ -11,12 +11,24 @@ type Helix struct {
 	handleStreamOffline func(evt *EventStreamOffline)
 }
 
+// OnStreamOnline sets the StreamOnline handler. The same event may be triggered
+// more than once.
+//
+// https://dev.twitch.tv/docs/eventsub/eventsub-reference/#stream-online-event
 func (hx *Helix) OnStreamOnline(cb func(evt *EventStreamOnline)) {
 	hx.handleStreamOnline = cb
 }
 
+// OnStreamOffline sets the StreamOffline handler. The same event may be triggered
+// more than once.
+//
+// https://dev.twitch.tv/docs/eventsub/eventsub-reference/#stream-offline-event
 func (hx *Helix) OnStreamOffline(cb func(evt *EventStreamOffline)) {
 	hx.handleStreamOffline = cb
+}
+
+func (hx *Helix) OnRevocation() {
+
 }
 
 type Storage interface {
@@ -24,4 +36,8 @@ type Storage interface {
 
 type StoragePostgres struct {
 	db *sql.DB
+}
+
+func New() *Helix {
+	return &Helix{}
 }
