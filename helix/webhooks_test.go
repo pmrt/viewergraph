@@ -123,7 +123,7 @@ func TestWebhookStreamOnline(t *testing.T) {
 	req.Header.Set(WebhookHeaderID, "f1c2a387-161a-49f9-a165-0f21d7a4e1c4")
 	req.Header.Set(WebhookHeaderTimestamp, "2019-11-16T10:11:12.123Z")
 	req.Header.Set(WebhookHeaderSignature, "sha256=135326f1ca01bb9ef7bb656053ce5a35e61a57ada77dc6705326c92d12c62060")
-	req.Header.Set(WebhookHeaderType, "notification")
+	req.Header.Set(WebhookHeaderType, WebhookEventNotification)
 
 	resp, _ := app.Test(req)
 
@@ -202,7 +202,7 @@ func TestWebhookStreamOffline(t *testing.T) {
 	req.Header.Set(WebhookHeaderID, "f1c2a387-161a-49f9-a165-0f21d7a4e1c4")
 	req.Header.Set(WebhookHeaderTimestamp, "2019-11-16T10:11:12.123Z")
 	req.Header.Set(WebhookHeaderSignature, "sha256=ce414455c20a25609bc0c276a052f461df1c11f14b90de15962131d5a715d827")
-	req.Header.Set(WebhookHeaderType, "notification")
+	req.Header.Set(WebhookHeaderType, WebhookEventNotification)
 
 	resp, _ := app.Test(req)
 

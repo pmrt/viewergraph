@@ -64,7 +64,7 @@ func (evt *WebhookHeaders) Valid(secret []byte) bool {
 	return hmac.Equal(sig, hexHash)
 }
 
-type WebhookNotificationResponse struct {
+type WebhookNotificationPayload struct {
 	Subscription struct {
 		ID        string `json:"id"`
 		Status    string `json:"status"`
@@ -112,7 +112,7 @@ func (h *WebhookHandler) handler(c *fiber.Ctx) error {
 	// Instead we will allow channels to be tracked only once at the same time.
 	switch headers.Type {
 	case WebhookEventNotification:
-		var resp *WebhookNotificationResponse
+		var resp *WebhookNotificationPayload
 		if err := c.BodyParser(&resp); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "Invalid notification body")
 		}
