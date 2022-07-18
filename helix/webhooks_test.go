@@ -111,12 +111,8 @@ func TestWebhookStreamOnline(t *testing.T) {
 		onlineEvt = evt
 	})
 
-	h := &WebhookHandler{
-		secret: secret,
-		hx:     hx,
-	}
 	app := fiber.New()
-	app.Post("/webhook", h.handler)
+	app.Post("/webhook", hx.WebhookHandler(secret))
 
 	req := httptest.NewRequest("POST", "http://localhost:7123/webhook", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -193,12 +189,8 @@ func TestWebhookStreamOffline(t *testing.T) {
 		onlineEvt = evt
 	})
 
-	h := &WebhookHandler{
-		secret: secret,
-		hx:     hx,
-	}
 	app := fiber.New()
-	app.Post("/webhook", h.handler)
+	app.Post("/webhook", hx.WebhookHandler(secret))
 
 	req := httptest.NewRequest("POST", "http://localhost:7123/webhook", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -253,12 +245,8 @@ func TestWebhookVerification(t *testing.T) {
 
 	hx := New()
 
-	h := &WebhookHandler{
-		secret: secret,
-		hx:     hx,
-	}
 	app := fiber.New()
-	app.Post("/webhook", h.handler)
+	app.Post("/webhook", hx.WebhookHandler(secret))
 
 	req := httptest.NewRequest("POST", "http://localhost:7123/webhook", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -313,12 +301,8 @@ func TestWebhookRevocation(t *testing.T) {
 		revokedEvt = evt
 	})
 
-	h := &WebhookHandler{
-		secret: secret,
-		hx:     hx,
-	}
 	app := fiber.New()
-	app.Post("/webhook", h.handler)
+	app.Post("/webhook", hx.WebhookHandler(secret))
 
 	req := httptest.NewRequest("POST", "http://localhost:7123/webhook", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")

@@ -1,6 +1,10 @@
 package helix
 
-import "database/sql"
+import (
+	"database/sql"
+
+	"github.com/gofiber/fiber/v2"
+)
 
 // 1. Suscribirse a eventos
 // 2. Registrar cbs, escuchar eventos (webhook) y ejecutar cbs
@@ -31,6 +35,15 @@ func (hx *Helix) OnStreamOffline(cb func(evt *EventStreamOffline)) {
 
 func (hx *Helix) OnRevocation(cb func(evt *WebhookRevokePayload)) {
 	hx.handleRevocation = cb
+}
+
+// Webhook handler for gofiber
+func (hx *Helix) WebhookHandler(webhookSecret []byte) func(c *fiber.Ctx) error {
+	h := &WebhookHandler{
+		hx:     hx,
+		secret: webhookSecret,
+	}
+	return h.handler
 }
 
 type Storage interface {
