@@ -227,3 +227,56 @@ func TestWebhookStreamOffline(t *testing.T) {
 		t.Fatal(diff)
 	}
 }
+
+func TestWebhookVerification(t *testing.T) {
+	var body = []byte(`{
+    "challenge": "pogchamp-kappa-360noscope-vohiyo",
+    "subscription": {
+      "id": "f1c2a387-161a-49f9-a165-0f21d7a4e1c4",
+      "status": "webhook_callback_verification_pending",
+      "type": "channel.follow",
+      "version": "1",
+      "cost": 1,
+      "condition": {
+        "broadcaster_user_id": "12826"
+      },
+      "transport": {
+        "method": "webhook",
+        "callback": "https://example.com/webhooks/callback"
+      },
+      "created_at": "2019-11-16T10:11:12.123Z"
+    }
+  }`)
+
+	hx := New()
+
+	h := &WebhookHandler{
+		secret: secret,
+		hx:     hx,
+	}
+	app := fiber.New()
+	app.Post("/webhook", h.handler)
+
+	req := httptest.NewRequest("POST", "http://localhost:7123/webhook", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(WebhookHeaderID, "f1c2a387-161a-49f9-a165-0f21d7a4e1c4")
+	req.Header.Set(WebhookHeaderTimestamp, "2019-11-16T10:11:12.123Z")
+	req.Header.Set(WebhookHeaderSignature, "sha256=876c54205d7c1ccb6966106190026ac2fcd6457a1d1010b6e7017b921a1fb4fd")
+	req.Header.Set(WebhookHeaderType, WebhookEventVerification)
+
+	resp, _ := app.Test(req)
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("\nexpected status code to be 200, got %d\nbody: %s", resp.StatusCode, b)
+	}
+
+	want := "pogchamp-kappa-360noscope-vohiyo"
+	if string(b) != "pogchamp-kappa-360noscope-vohiyo" {
+		t.Fatalf("expected body to be %s, got %s instead", want, b)
+	}
+}

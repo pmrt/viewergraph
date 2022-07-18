@@ -90,6 +90,25 @@ type WebhookNotificationPayload struct {
 	} `json:"event"`
 }
 
+type WebhookVerificationPayload struct {
+	Challenge    string `json:"challenge"`
+	Subscription struct {
+		ID        string `json:"id"`
+		Status    string `json:"status"`
+		Type      string `json:"type"`
+		Version   string `json:"version"`
+		Cost      int    `json:"cost"`
+		Condition struct {
+			BroadcasterUserID string `json:"broadcaster_user_id"`
+		}
+		Transport struct {
+			Method   string `json:"method"`
+			Callback string `json:"callback"`
+		}
+		CreatedAt time.Time `json:"created_at"`
+	} `json:"subscription"`
+}
+
 type WebhookHandler struct {
 	secret []byte
 	hx     *Helix
@@ -141,7 +160,16 @@ func (h *WebhookHandler) handler(c *fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusBadRequest, "Unknown notification subscription type")
 		}
 	case WebhookEventVerification:
+		var resp *WebhookVerificationPayload
+		if err := c.BodyParser(&resp); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "Invalid notification body")
+		}
+		if resp.Challenge == "" {
+			return fiber.NewError(fiber.StatusBadRequest, "Empty challenge")
+		}
+		return c.SendString(resp.Challenge)
 	case WebhookEventRevocation:
+		// TODO - check revocation and re-sub if it is a tracked channel
 	default:
 		return fiber.NewError(fiber.StatusBadRequest, "Unknown Twitch-Eventsub-Message-Type header")
 	}
