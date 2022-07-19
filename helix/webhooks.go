@@ -86,19 +86,24 @@ type WebhookRevokePayload struct {
 }
 
 type Subscription struct {
-	ID        string `json:"id"`
-	Status    string `json:"status"`
-	Type      string `json:"type"`
-	Version   string `json:"version"`
-	Cost      int    `json:"cost"`
-	Condition struct {
-		BroadcasterUserID string `json:"broadcaster_user_id"`
-	}
-	Transport struct {
-		Method   string `json:"method"`
-		Callback string `json:"callback"`
-	}
-	CreatedAt time.Time `json:"created_at"`
+	ID        string     `json:"id"`
+	Status    string     `json:"status"`
+	Type      string     `json:"type"`
+	Version   string     `json:"version"`
+	Cost      int        `json:"cost"`
+	Condition *Condition `json:"condition"`
+	Transport *Transport `json:"transport"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
+type Condition struct {
+	BroadcasterUserID string `json:"broadcaster_user_id"`
+}
+
+type Transport struct {
+	Method   string `json:"method"`
+	Callback string `json:"callback"`
+	Secret   string `json:"secret"`
 }
 
 type WebhookHandler struct {

@@ -1,7 +1,12 @@
 package helix
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -11,10 +16,56 @@ import (
 // 3. Gestionar credenciales (clientid/secret y token refresh)
 
 type Helix struct {
+	clientID, secret         string
+	APIUrl, EventSubEndpoint string
+
+	c *http.Client
+
 	handleStreamOnline  func(evt *EventStreamOnline)
 	handleStreamOffline func(evt *EventStreamOffline)
 
 	handleRevocation func(evt *WebhookRevokePayload)
+}
+
+const EstimatedSubscriptionJSONSize = 350
+
+func (hx *Helix) CreateEventSubSubscription(sub *Subscription) error {
+	b := struct {
+		Type      string     `json:"type"`
+		Version   string     `json:"version"`
+		Condition *Condition `json:"condition"`
+		Transport *Transport `json:"transport"`
+	}{
+		Type:      sub.Type,
+		Version:   sub.Version,
+		Condition: sub.Condition,
+		Transport: sub.Transport,
+	}
+
+	buf := bytes.NewBuffer(make([]byte, 0, EstimatedSubscriptionJSONSize))
+	if err := json.NewEncoder(buf).Encode(b); err != nil {
+		return err
+	}
+	req, err := http.NewRequest(
+		"POST",
+		hx.APIUrl+hx.EventSubEndpoint+"/subscriptions",
+		buf,
+	)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := hx.c.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return errors.New("Expected 200 response, got" + fmt.Sprint(resp.StatusCode))
+	}
+	return nil
 }
 
 // OnStreamOnline sets the StreamOnline handler. The same event may be triggered
@@ -53,6 +104,11 @@ type StoragePostgres struct {
 	db *sql.DB
 }
 
-func New() *Helix {
-	return &Helix{}
+func New(clientID, secret string) *Helix {
+	return &Helix{
+		clientID:         clientID,
+		secret:           secret,
+		APIUrl:           "https://api.twitch.tv/helix",
+		EventSubEndpoint: "/eventsub",
+	}
 }

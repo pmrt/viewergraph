@@ -94,6 +94,9 @@ var (
 	PostgresMigVersion             int
 	PostgresMigPath                string
 
+	HelixClientID string
+	HelixSecret   string
+
 	SkipMigrations bool
 
 	APIPort string
@@ -137,6 +140,9 @@ func LoadVars() {
 	PostgresConnTimeoutSeconds = Env("POSTGRES_CONN_TIMEOUT_SECONDS", 60)
 	PostgresMigVersion = Env("POSTGRES_MIG_VERSION", 1)
 	PostgresMigPath = Env("POSTGRES_MIG_VERSION", "database/postgres/migrations")
+
+	HelixClientID = Env("HELIX_CLIENT_ID", "fake_client_id")
+	HelixSecret = Env("HELIX_SECRET", "fake_secret")
 
 	SkipMigrations = Env("SKIP_MIGRATIONS", false)
 

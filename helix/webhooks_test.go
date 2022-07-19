@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-test/deep"
 	"github.com/gofiber/fiber/v2"
+	"github.com/pmrt/viewergraph/config"
 )
 
 func TestWebhookHeadersValidation(t *testing.T) {
@@ -106,7 +107,7 @@ func TestWebhookStreamOnline(t *testing.T) {
     }
   }`)
 
-	hx := New()
+	hx := New(config.HelixClientID, config.HelixSecret)
 	hx.OnStreamOnline(func(evt *EventStreamOnline) {
 		onlineEvt = evt
 	})
@@ -184,7 +185,7 @@ func TestWebhookStreamOffline(t *testing.T) {
     }
   }`)
 
-	hx := New()
+	hx := New(config.HelixClientID, config.HelixSecret)
 	hx.OnStreamOffline(func(evt *EventStreamOffline) {
 		onlineEvt = evt
 	})
@@ -243,7 +244,7 @@ func TestWebhookVerification(t *testing.T) {
     }
   }`)
 
-	hx := New()
+	hx := New(config.HelixClientID, config.HelixSecret)
 
 	app := fiber.New()
 	app.Post("/webhook", hx.WebhookHandler(secret))
@@ -295,7 +296,7 @@ func TestWebhookRevocation(t *testing.T) {
   }`)
 
 	var revokedEvt *WebhookRevokePayload
-	hx := New()
+	hx := New(config.HelixClientID, config.HelixSecret)
 	hx.OnRevocation(func(evt *WebhookRevokePayload) {
 		t.Log("entering")
 		revokedEvt = evt
