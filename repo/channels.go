@@ -9,7 +9,7 @@ import (
 	. "github.com/pmrt/viewergraph/gen/vg/public/table"
 )
 
-func Channels(db *sql.DB) (f []*model.TrackedChannels, err error) {
+func Tracked(db *sql.DB) (f []*model.TrackedChannels, err error) {
 	stmt := SELECT(
 		TrackedChannels.BroadcasterID,
 	).FROM(TrackedChannels)

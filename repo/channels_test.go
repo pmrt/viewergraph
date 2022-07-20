@@ -34,7 +34,7 @@ func TestChannels(t *testing.T) {
 	}
 	insertChannel(channel)
 
-	rows, err := Channels(db)
+	rows, err := Tracked(db)
 	if err != nil {
 		t.Fatal(err)
 	}
