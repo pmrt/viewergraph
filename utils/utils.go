@@ -5,6 +5,10 @@ import (
 	"unsafe"
 )
 
+func StrPtr(s string) *string {
+	return &s
+}
+
 func StringToByte(s string) (b []byte) {
 	bh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
 	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
