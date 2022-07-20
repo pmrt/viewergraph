@@ -9,6 +9,7 @@ import (
 	. "github.com/pmrt/viewergraph/gen/vg/public/table"
 )
 
+// Tracked retrieves the tracked channels ids from a `db` source
 func Tracked(db *sql.DB) (f []*model.TrackedChannels, err error) {
 	stmt := SELECT(
 		TrackedChannels.BroadcasterID,
