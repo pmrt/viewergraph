@@ -24,15 +24,14 @@ func insertChannel(channel *model.TrackedChannels) {
 }
 
 func TestChannels(t *testing.T) {
-	channel := &model.TrackedChannels{
+	insertChannel(&model.TrackedChannels{
 		BroadcasterID:          "36138196",
 		BroadcasterDisplayName: "alexelcapo",
 		BroadcasterUsername:    "alexelcapo",
 		BroadcasterType:        model.Broadcastertype_Partner,
 		ProfileImageURL:        utils.StrPtr("https://static-cdn.jtvnw.net/jtv_user_pictures/bf455aac-4ce9-4daa-94a0-c6c0a1b2500d-channel_offline_image-1920x1080.png"),
 		OfflineImageURL:        utils.StrPtr("https://static-cdn.jtvnw.net/jtv_user_pictures/bf455aac-4ce9-4daa-94a0-c6c0a1b2500d-channel_offline_image-1920x1080.png"),
-	}
-	insertChannel(channel)
+	})
 
 	rows, err := Tracked(db)
 	if err != nil {
@@ -43,7 +42,10 @@ func TestChannels(t *testing.T) {
 		t.Fatal("expected channels to return exactly 1 row")
 	}
 
-	if diff := deep.Equal(rows[0], channel); err != nil {
+	want := &model.TrackedChannels{
+		BroadcasterID: "36138196",
+	}
+	if diff := deep.Equal(rows[0], want); diff != nil {
 		t.Fatal(diff)
 	}
 }
