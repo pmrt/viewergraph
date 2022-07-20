@@ -107,7 +107,7 @@ func TestWebhookStreamOnline(t *testing.T) {
     }
   }`)
 
-	hx := New(config.HelixClientID, config.HelixSecret)
+	hx := NewWithoutExchange(config.HelixClientID, config.HelixSecret)
 	hx.OnStreamOnline(func(evt *EventStreamOnline) {
 		onlineEvt = evt
 	})
@@ -126,6 +126,7 @@ func TestWebhookStreamOnline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer resp.Body.Close()
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -185,7 +186,7 @@ func TestWebhookStreamOffline(t *testing.T) {
     }
   }`)
 
-	hx := New(config.HelixClientID, config.HelixSecret)
+	hx := NewWithoutExchange(config.HelixClientID, config.HelixSecret)
 	hx.OnStreamOffline(func(evt *EventStreamOffline) {
 		onlineEvt = evt
 	})
@@ -201,6 +202,7 @@ func TestWebhookStreamOffline(t *testing.T) {
 	req.Header.Set(WebhookHeaderType, WebhookEventNotification)
 
 	resp, _ := app.Test(req)
+	defer resp.Body.Close()
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -244,7 +246,7 @@ func TestWebhookVerification(t *testing.T) {
     }
   }`)
 
-	hx := New(config.HelixClientID, config.HelixSecret)
+	hx := NewWithoutExchange(config.HelixClientID, config.HelixSecret)
 
 	app := fiber.New()
 	app.Post("/webhook", hx.WebhookHandler(secret))
@@ -260,6 +262,7 @@ func TestWebhookVerification(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer resp.Body.Close()
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -296,9 +299,8 @@ func TestWebhookRevocation(t *testing.T) {
   }`)
 
 	var revokedEvt *WebhookRevokePayload
-	hx := New(config.HelixClientID, config.HelixSecret)
+	hx := NewWithoutExchange(config.HelixClientID, config.HelixSecret)
 	hx.OnRevocation(func(evt *WebhookRevokePayload) {
-		t.Log("entering")
 		revokedEvt = evt
 	})
 
@@ -316,6 +318,7 @@ func TestWebhookRevocation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer resp.Body.Close()
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -325,7 +328,6 @@ func TestWebhookRevocation(t *testing.T) {
 	if resp.StatusCode != 200 {
 		t.Fatalf("\nexpected status code to be 200, got %d\nbody: %s", resp.StatusCode, b)
 	}
-	t.Log(revokedEvt)
 
 	if revokedEvt.Subscription.Status != "authorization_revoked" {
 		t.Fatalf(

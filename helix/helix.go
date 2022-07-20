@@ -2,13 +2,15 @@ package helix
 
 import (
 	"bytes"
-	"database/sql"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
+	"golang.org/x/oauth2/clientcredentials"
+	"golang.org/x/oauth2/twitch"
 )
 
 // 1. Suscribirse a eventos
@@ -16,6 +18,7 @@ import (
 // 3. Gestionar credenciales (clientid/secret y token refresh)
 
 type Helix struct {
+	ctx                      context.Context
 	clientID, secret         string
 	APIUrl, EventSubEndpoint string
 
@@ -97,18 +100,37 @@ func (hx *Helix) WebhookHandler(webhookSecret []byte) func(c *fiber.Ctx) error {
 	return h.handler
 }
 
-type Storage interface {
+// Exchange uses the client credentials to get a new http client with the
+// corresponding token source, refreshing the token when needed. This http
+// client injects the required Authorization header to the requests and will be
+// used by the following requests.
+//
+// Must be used before using authenticated endpoints.
+func (hx *Helix) Exchange() {
+	o2 := &clientcredentials.Config{
+		ClientID:     hx.clientID,
+		ClientSecret: hx.secret,
+		TokenURL:     twitch.Endpoint.TokenURL,
+	}
+	hx.c = o2.Client(hx.ctx)
 }
 
-type StoragePostgres struct {
-	db *sql.DB
-}
-
-func New(clientID, secret string) *Helix {
+// NewWithoutExchange instantiates a new Helix client but without exchanging
+// credentials for a token source. Useful for testing.
+//
+// Use New() if your helix client will be using authenticated endpoints.
+func NewWithoutExchange(clientID, secret string) *Helix {
 	return &Helix{
+		ctx:              context.Background(),
 		clientID:         clientID,
 		secret:           secret,
 		APIUrl:           "https://api.twitch.tv/helix",
 		EventSubEndpoint: "/eventsub",
 	}
+}
+
+func New(clientID, secret string) *Helix {
+	hx := NewWithoutExchange(clientID, secret)
+	hx.Exchange()
+	return hx
 }
