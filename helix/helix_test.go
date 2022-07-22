@@ -20,7 +20,10 @@ func TestHelixCredentials(t *testing.T) {
 		t.Skip("WARNING: TEST_CLIENT_ID and TEST_CLIENT_SECRET environment variables needed for this test, skipping. Re-run test with required environment variables.")
 	}
 
-	hx := New(cid, cs)
+	hx := New(ClientCreds{
+		ClientID:     cid,
+		ClientSecret: cs,
+	})
 
 	if hx.c == nil {
 		t.Fatal("client is empty")
@@ -31,7 +34,7 @@ func TestHelixCredentials(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Header.Set("Client-Id", hx.clientID)
+	req.Header.Set("Client-Id", hx.creds.ClientID)
 
 	resp, err := hx.c.Do(req)
 	if err != nil {
@@ -92,8 +95,10 @@ func TestHelixCreateEventSubSubscription(t *testing.T) {
 	}))
 	defer sv.Close()
 	hx := &Helix{
-		clientID:         config.HelixClientID,
-		secret:           config.HelixSecret,
+		creds: ClientCreds{
+			ClientID:     config.HelixClientID,
+			ClientSecret: config.HelixSecret,
+		},
 		c:                sv.Client(),
 		APIUrl:           sv.URL,
 		EventSubEndpoint: "/eventsub",

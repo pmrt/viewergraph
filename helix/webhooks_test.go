@@ -107,7 +107,10 @@ func TestWebhookStreamOnline(t *testing.T) {
     }
   }`)
 
-	hx := NewWithoutExchange(config.HelixClientID, config.HelixSecret)
+	hx := NewWithoutExchange(ClientCreds{
+		ClientID:     config.HelixClientID,
+		ClientSecret: config.HelixSecret,
+	})
 	hx.OnStreamOnline(func(evt *EventStreamOnline) {
 		onlineEvt = evt
 	})
@@ -186,7 +189,10 @@ func TestWebhookStreamOffline(t *testing.T) {
     }
   }`)
 
-	hx := NewWithoutExchange(config.HelixClientID, config.HelixSecret)
+	hx := NewWithoutExchange(ClientCreds{
+		ClientID:     config.HelixClientID,
+		ClientSecret: config.HelixSecret,
+	})
 	hx.OnStreamOffline(func(evt *EventStreamOffline) {
 		onlineEvt = evt
 	})
@@ -246,7 +252,10 @@ func TestWebhookVerification(t *testing.T) {
     }
   }`)
 
-	hx := NewWithoutExchange(config.HelixClientID, config.HelixSecret)
+	hx := NewWithoutExchange(ClientCreds{
+		ClientID:     config.HelixClientID,
+		ClientSecret: config.HelixSecret,
+	})
 
 	app := fiber.New()
 	app.Post("/webhook", hx.WebhookHandler(secret))
@@ -299,7 +308,10 @@ func TestWebhookRevocation(t *testing.T) {
   }`)
 
 	var revokedEvt *WebhookRevokePayload
-	hx := NewWithoutExchange(config.HelixClientID, config.HelixSecret)
+	hx := NewWithoutExchange(ClientCreds{
+		ClientID:     config.HelixClientID,
+		ClientSecret: config.HelixSecret,
+	})
 	hx.OnRevocation(func(evt *WebhookRevokePayload) {
 		revokedEvt = evt
 	})

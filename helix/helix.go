@@ -16,9 +16,13 @@ import (
 // 1. Suscribirse a eventos
 // 2. Registrar cbs, escuchar eventos (webhook) y ejecutar cbs
 // 3. Gestionar credenciales (clientid/secret y token refresh)
+type ClientCreds struct {
+	ClientID, ClientSecret string
+}
 
 type Helix struct {
 	ctx                      context.Context
+	creds                    ClientCreds
 	clientID, secret         string
 	APIUrl, EventSubEndpoint string
 
@@ -108,8 +112,8 @@ func (hx *Helix) WebhookHandler(webhookSecret []byte) func(c *fiber.Ctx) error {
 // Must be used before using authenticated endpoints.
 func (hx *Helix) Exchange() {
 	o2 := &clientcredentials.Config{
-		ClientID:     hx.clientID,
-		ClientSecret: hx.secret,
+		ClientID:     hx.creds.ClientID,
+		ClientSecret: hx.creds.ClientSecret,
 		TokenURL:     twitch.Endpoint.TokenURL,
 	}
 	hx.c = o2.Client(hx.ctx)
@@ -119,18 +123,17 @@ func (hx *Helix) Exchange() {
 // credentials for a token source. Useful for testing.
 //
 // Use New() if your helix client will be using authenticated endpoints.
-func NewWithoutExchange(clientID, secret string) *Helix {
+func NewWithoutExchange(creds ClientCreds) *Helix {
 	return &Helix{
+		creds:            creds,
 		ctx:              context.Background(),
-		clientID:         clientID,
-		secret:           secret,
 		APIUrl:           "https://api.twitch.tv/helix",
 		EventSubEndpoint: "/eventsub",
 	}
 }
 
-func New(clientID, secret string) *Helix {
-	hx := NewWithoutExchange(clientID, secret)
+func New(creds ClientCreds) *Helix {
+	hx := NewWithoutExchange(creds)
 	hx.Exchange()
 	return hx
 }
