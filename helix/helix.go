@@ -126,6 +126,7 @@ func (hx *Helix) Exchange() {
 func NewWithoutExchange(creds ClientCreds) *Helix {
 	return &Helix{
 		creds:            creds,
+		c:                http.DefaultClient,
 		ctx:              context.Background(),
 		APIUrl:           "https://api.twitch.tv/helix",
 		EventSubEndpoint: "/eventsub",
