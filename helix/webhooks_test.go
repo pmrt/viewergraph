@@ -111,8 +111,10 @@ func TestWebhookStreamOnline(t *testing.T) {
 		ClientID:     config.HelixClientID,
 		ClientSecret: config.HelixSecret,
 	})
+	wait := make(chan struct{}, 1)
 	hx.OnStreamOnline(func(evt *EventStreamOnline) {
 		onlineEvt = evt
+		wait <- struct{}{}
 	})
 
 	app := fiber.New()
@@ -145,6 +147,7 @@ func TestWebhookStreamOnline(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	<-wait
 	got := onlineEvt
 	want := &EventStreamOnline{
 		ID:        "9001",
@@ -193,8 +196,10 @@ func TestWebhookStreamOffline(t *testing.T) {
 		ClientID:     config.HelixClientID,
 		ClientSecret: config.HelixSecret,
 	})
+	wait := make(chan struct{}, 1)
 	hx.OnStreamOffline(func(evt *EventStreamOffline) {
 		onlineEvt = evt
+		wait <- struct{}{}
 	})
 
 	app := fiber.New()
@@ -219,6 +224,7 @@ func TestWebhookStreamOffline(t *testing.T) {
 		t.Fatalf("\nexpected status code to be 200, got %d\nbody: %s", resp.StatusCode, b)
 	}
 
+	<-wait
 	got := onlineEvt
 	want := &EventStreamOffline{
 		Broadcaster: &Broadcaster{

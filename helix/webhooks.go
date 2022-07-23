@@ -134,8 +134,11 @@ func (h *WebhookHandler) handler(c *fiber.Ctx) error {
 		}
 
 		switch resp.Subscription.Type {
+		// handlers may involve long-running tasks, so we separate them from this
+		// goroutine, otherwise the request would block until they finish and the
+		// twitch server would eventually revoke the subscriptions.
 		case SubStreamOnline:
-			h.hx.handleStreamOnline(&EventStreamOnline{
+			go h.hx.handleStreamOnline(&EventStreamOnline{
 				ID:        resp.Event.ID,
 				Type:      resp.Event.Type,
 				StartedAt: resp.Event.StartedAt,
@@ -146,7 +149,7 @@ func (h *WebhookHandler) handler(c *fiber.Ctx) error {
 				},
 			})
 		case SubStreamOffline:
-			h.hx.handleStreamOffline(&EventStreamOffline{
+			go h.hx.handleStreamOffline(&EventStreamOffline{
 				&Broadcaster{
 					ID:       resp.Event.BroadcasterUserID,
 					Login:    resp.Event.BroadcasterUserLogin,
