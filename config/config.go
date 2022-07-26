@@ -101,6 +101,8 @@ var (
 
 	APIPort string
 
+	TrackIntervalMinutes int
+
 	Debug bool
 )
 
@@ -143,6 +145,8 @@ func LoadVars() {
 
 	HelixClientID = Env("HELIX_CLIENT_ID", "fake_client_id")
 	HelixSecret = Env("HELIX_SECRET", "fake_secret")
+
+	TrackIntervalMinutes = Env("TRACK_INTERVAL_MINUTES", 3600)
 
 	SkipMigrations = Env("SKIP_MIGRATIONS", false)
 
