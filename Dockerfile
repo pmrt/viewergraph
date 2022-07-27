@@ -13,7 +13,7 @@ COPY . .
 # Don't use libc, the resulting binary will be statically linked against the
 # libraries
 ENV CGO_ENABLED=0
-RUN go build -o /usr/local/bin/vgserver ./cmd/vgserver
+RUN go build -tags RELEASE -o /usr/local/bin/vgserver ./cmd/vgserver
 
 ENTRYPOINT ["vgserver"]
 

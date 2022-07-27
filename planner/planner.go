@@ -6,8 +6,10 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	cmap "github.com/pmrt/concurrent-map/v3"
+	"github.com/pmrt/viewergraph/config"
 	"github.com/pmrt/viewergraph/gen/vg/public/model"
 	"github.com/pmrt/viewergraph/helix"
+	"github.com/rs/zerolog"
 	l "github.com/rs/zerolog/log"
 )
 
@@ -19,19 +21,28 @@ type PlannerOpts struct {
 	WebhookSecret    string
 	WebhookPort      string
 
-	TrackIntervalMinutes time.Duration
-	TrackOnlineTimeout   time.Duration
+	TrackInterval      time.Duration
+	TrackOnlineTimeout time.Duration
+	WorkerTimeout      time.Duration
 
-	WorkerFunc func(bid string)
+	// If this flag is true the executor will not sleep to align the cycle to the
+	// corresponding balanced minute. Useful for testing
+	SkipAlign bool
+
+	// Hook to be called right before worker with the same parameters. Intended
+	// just for testing. It will be removed by compiler in release builds.
+	beforeWorkerTest func(ctx context.Context, bid string)
+	WorkerFunc       func(ctx context.Context, bid string)
 }
 
 type endSig chan struct{}
 
 type Planner struct {
-	ctx  context.Context
-	opts *PlannerOpts
-	hx   *helix.Helix
-	sv   *fiber.App
+	ctx    context.Context
+	cancel context.CancelFunc
+	opts   *PlannerOpts
+	hx     *helix.Helix
+	sv     *fiber.App
 
 	// queue of channels to be tracked
 	queue []*model.TrackedChannels
@@ -96,15 +107,34 @@ func (p *Planner) Start() error {
 // a timeout, this timeout is meant to close the channel if the stream has not
 // received a stream.offline event after an abnormally long time.
 func (p *Planner) OnStreamOnline(evt *helix.EventStreamOnline) {
-	end := make(endSig, 1)
+	ctx, cancel := context.WithTimeout(p.ctx, p.opts.TrackOnlineTimeout)
+	defer cancel()
 
-	if !p.active.SetIfAbsent(evt.Broadcaster.ID, end) {
+	end := make(endSig, 1)
+	bid, usr := evt.Broadcaster.ID, evt.Broadcaster.Login
+	l := l.With().
+		Str("context", "planner_executor").
+		Str("bid", bid).
+		Str("login", usr).
+		Logger()
+
+	l.Debug().Msg("started executor upon stream.online event")
+
+	if !p.active.SetIfAbsent(bid, end) {
+		l.Trace().Msg("-> duplicated worker found. Aborted executor")
 		return
 	}
 
 	// generate a uniform minute based on broadcaster ID
-	min := balancedKey(evt.Broadcaster.ID, 60)
-	time.Sleep(untilMinute(int(min)))
+	min := balancedKey(bid, 60)
+	l.Trace().Msgf("-> balanced minute is %d", min)
+	if !p.opts.SkipAlign {
+		// waits for the next corresponding balanced minute so it aligns the cycle to
+		// the specific minute
+		d := untilMinute(int(min))
+		l.Debug().Msgf("-> align phase. Sleeping for %d", d)
+		time.Sleep(d)
+	}
 
 	// If close signals were sent (ie. channels were closed) during our arbitrary
 	// sleep phase (from 0 to 59 minutes), abort.
@@ -121,39 +151,85 @@ func (p *Planner) OnStreamOnline(evt *helix.EventStreamOnline) {
 	// this becomes a problem in the future we could store the ts when the last
 	// worker started in the concurrent hashmap
 	select {
-	case <-p.ctx.Done():
+	case <-ctx.Done():
+		defer p.active.Remove(bid)
+		l.UpdateContext(func(c zerolog.Context) zerolog.Context {
+			return c.Str("reason", "context_cancelled")
+		})
+		l.Debug().Msg("-> premature cancellation")
+		return
 	case <-end:
+		l.UpdateContext(func(c zerolog.Context) zerolog.Context {
+			return c.Str("reason", "end_signal")
+		})
+		l.Debug().Msg("-> premature cancellation")
 		return
 	default:
 	}
 
-	// start ticker (before running worker first time so it doesn't get delayed by
-	// worker)
-	ticker := time.NewTicker(p.opts.TrackIntervalMinutes)
-	timeout := time.NewTimer(p.opts.TrackOnlineTimeout)
+	l.Debug().Msg("-> started cycle")
+	ticker := time.NewTicker(p.opts.TrackInterval)
 	defer ticker.Stop()
-	// run worker once
-	go p.opts.WorkerFunc(evt.Broadcaster.ID)
 
-	// start cycle
+	p.runWorker(ctx, l, bid)
 	for {
 		select {
-		case <-p.ctx.Done():
+		case <-ctx.Done():
+			defer p.active.Remove(bid)
+			l.UpdateContext(func(c zerolog.Context) zerolog.Context {
+				return c.Str("reason", "context_cancelled")
+			})
+			l.Debug().Msg("-> ended cycle")
+			return
 		case <-end:
-		case <-timeout.C:
+			l.UpdateContext(func(c zerolog.Context) zerolog.Context {
+				return c.Str("reason", "end_signal")
+			})
+			l.Debug().Msg("-> ended cycle")
 			return
 		case <-ticker.C:
-			go p.opts.WorkerFunc(evt.Broadcaster.ID)
+			p.runWorker(ctx, l, bid)
 		}
 	}
 }
 
 func (p *Planner) OnStreamOffline(evt *helix.EventStreamOffline) {
+	l := l.With().
+		Str("context", "planner_offline_evt").
+		Str("bid", evt.Broadcaster.ID).
+		Str("login", evt.Broadcaster.Login).
+		Logger()
+
 	// Run worker one more time before closing
-	go p.opts.WorkerFunc(evt.Broadcaster.ID)
+	p.runWorker(p.ctx, l, evt.Broadcaster.ID)
 	if end, ok := p.active.Pop(evt.Broadcaster.ID); ok {
 		close(end)
 	}
+}
+
+func (p *Planner) runWorker(ctx context.Context, l zerolog.Logger, bid string) {
+	// TODO - logger can be injected into context by parent contexts
+	l.Trace().Msg("-> run worker")
+	ctx, cancel := context.WithTimeout(ctx, p.opts.WorkerTimeout)
+	if !config.IsProd {
+		if p.opts.beforeWorkerTest != nil {
+			p.opts.beforeWorkerTest(ctx, bid)
+		}
+	}
+	// The workers are run in a different goroutine so they don't delay the cycle
+	go func() {
+		defer cancel()
+		p.opts.WorkerFunc(ctx, bid)
+	}()
+}
+
+func (p *Planner) Stop() {
+	l := l.With().
+		Str("context", "planner").
+		Logger()
+
+	l.Info().Msg("stopping planner by manual intervention")
+	p.cancel()
 }
 
 func (p *Planner) flush() {
@@ -210,9 +286,11 @@ func (p *Planner) flush() {
 }
 
 func New(opts *PlannerOpts) *Planner {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Planner{
 		opts:   opts,
-		ctx:    context.Background(),
+		ctx:    ctx,
+		cancel: cancel,
 		sv:     fiber.New(),
 		active: cmap.NewWithConcurrencyLevel[endSig](32),
 	}

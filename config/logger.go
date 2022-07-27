@@ -9,8 +9,5 @@ func setupLogger() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
 
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	if Debug {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	}
+	zerolog.SetGlobalLevel(zerolog.Level(LogLevel))
 }

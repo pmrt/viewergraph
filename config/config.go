@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/joho/godotenv"
+	"github.com/rs/zerolog"
 	l "github.com/rs/zerolog/log"
 )
 
@@ -17,7 +18,7 @@ func Setup() {
 }
 
 type SupportStringconv interface {
-	~int | ~int64 | ~float32 | ~string | ~bool
+	~int | ~int8 | ~int64 | ~float32 | ~string | ~bool
 }
 
 func conv(v string, to reflect.Kind) any {
@@ -36,6 +37,12 @@ func conv(v string, to reflect.Kind) any {
 	if to == reflect.Int {
 		if int, err := strconv.Atoi(v); err == nil {
 			return int
+		}
+	}
+
+	if to == reflect.Int8 {
+		if i64, err := strconv.ParseInt(v, 10, 8); err == nil {
+			return int8(i64)
 		}
 	}
 
@@ -103,7 +110,8 @@ var (
 
 	TrackIntervalMinutes int
 
-	Debug bool
+	Debug    bool
+	LogLevel int8
 )
 
 func LoadVars() {
@@ -151,5 +159,5 @@ func LoadVars() {
 	SkipMigrations = Env("SKIP_MIGRATIONS", false)
 
 	Debug = Env("DEBUG", false)
-
+	LogLevel = Env("LOG_LEVEL", int8(zerolog.DebugLevel))
 }
