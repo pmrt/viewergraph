@@ -4,7 +4,16 @@ import (
 	"math"
 	"reflect"
 	"unsafe"
+
+	"github.com/rs/zerolog"
+	l "github.com/rs/zerolog/log"
 )
+
+func Logger(ctx string) zerolog.Logger {
+	return l.With().
+		Str("context", ctx).
+		Logger()
+}
 
 // CV computes the coefficient of variation of the set of values in `s`.
 //
