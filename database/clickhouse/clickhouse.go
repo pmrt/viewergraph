@@ -32,7 +32,9 @@ func (s *Clickhouse) Ping(ctx context.Context) (err error) {
 }
 
 func (s *Clickhouse) Migrate() error {
-	d, err := mch.WithInstance(s.db, &mch.Config{})
+	d, err := mch.WithInstance(s.db, &mch.Config{
+		MultiStatementEnabled: true,
+	})
 	if err != nil {
 		return err
 	}
