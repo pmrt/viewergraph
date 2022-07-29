@@ -1,4 +1,4 @@
-package repo
+package postgres
 
 import (
 	"database/sql"
@@ -54,7 +54,7 @@ func TestMain(m *testing.M) {
 			DebugMode:              true,
 
 			MigrationVersion: 1,
-			MigrationPath:    "../database/postgres/migrations",
+			MigrationPath:    "../../database/postgres/migrations",
 		}))
 	db = sto.Conn()
 
