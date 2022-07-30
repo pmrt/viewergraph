@@ -92,7 +92,7 @@ func ReconcileEvents(db *sql.DB, lastAt time.Time, window time.Duration) error {
           PARTITION BY username
           ORDER BY
            ts ASC
-          RANGE BETWEEN @WindowSeconds PRECEDING AND 1 PRECEDING
+          RANGE BETWEEN @WindowSeconds PRECEDING AND 0 PRECEDING
         ) AS referrers
       FROM raw_events
       WHERE
@@ -101,7 +101,7 @@ func ReconcileEvents(db *sql.DB, lastAt time.Time, window time.Duration) error {
     )
     WHERE
       length(referrers) > 0 AND referrer != channel
-    ORDER BY (channel, ts, referrer, username)
+    ORDER BY (channel, ts, referrer)
   `,
 		sql.Named("WindowSeconds", window.Seconds()),
 		sql.Named("Since", since),

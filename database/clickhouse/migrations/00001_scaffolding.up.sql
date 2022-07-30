@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS events (
   referrer LowCardinality(String)
 ) ENGINE = ReplacingMergeTree()
 PARTITION BY toYYYYMM(ts)
-ORDER BY (channel, ts, referrer, username);
+ORDER BY (channel, ts, referrer);
 
 -- From which channels do users come to the given channel
 CREATE TABLE aggregated_flows_by_dst (
