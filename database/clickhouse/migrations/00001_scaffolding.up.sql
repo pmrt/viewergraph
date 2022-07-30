@@ -61,7 +61,7 @@ TO aggregated_flows_by_src
 AS
   SELECT
     ts, channel, referrer,
-    uniqMerge(total_users)
+    uniqMergeState(total_users) as total_users
   FROM aggregated_flows_by_dst
   GROUP BY referrer, ts, channel
   ORDER BY (referrer, ts, channel);

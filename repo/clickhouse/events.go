@@ -2,10 +2,9 @@ package clickhouse
 
 import (
 	"database/sql"
-	"fmt"
+	"io"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/pmrt/viewergraph/utils"
 )
 
@@ -139,7 +138,7 @@ func UserFlowsByDstHourly(db *sql.DB, channel string, from, to time.Time) ([]*Us
       channel = @Channel AND
       ts >= @From AND
       ts <= @To
-    GROUP BY ts, referrer
+    GROUP BY channel, ts, referrer
     ORDER BY ts ASC, total DESC
     LIMIT @Max
   `,
@@ -159,6 +158,48 @@ func UserFlowsByDstHourly(db *sql.DB, channel string, from, to time.Time) ([]*Us
 		if err := rows.Scan(
 			&flow.Ts,
 			&flow.Referrer,
+			&flow.Total,
+		); err != nil {
+			l.Error().Err(err).Msg("error while scanning")
+		}
+		r = append(r, flow)
+	}
+	return r, nil
+}
+
+func UserFlowsBySrcHourly(db *sql.DB, referrer string, from, to time.Time) ([]*UserFlowSrc, error) {
+	l := utils.Logger("query", "q", "UserFlowsBySrcHourly")
+
+	const max = 20
+	rows, err := db.Query(`
+	   SELECT
+	     ts, channel,
+	     uniqMerge(total_users) as total
+	   FROM aggregated_flows_by_src
+	   WHERE
+	     referrer = @Referrer AND
+	     ts >= @From AND
+	     ts <= @To
+	   GROUP BY referrer, ts, channel
+	   ORDER BY ts ASC, total DESC
+	   LIMIT @Max
+	 `,
+		sql.Named("Referrer", referrer),
+		sql.Named("From", from),
+		sql.Named("To", to),
+		sql.Named("Max", max),
+	)
+	if err != nil {
+		l.Error().Err(err).Msg("error while executing query")
+		return nil, err
+	}
+
+	r := make([]*UserFlowSrc, 0, max)
+	for rows.Next() {
+		flow := new(UserFlowSrc)
+		if err := rows.Scan(
+			&flow.Ts,
+			&flow.Channel,
 			&flow.Total,
 		); err != nil {
 			l.Error().Err(err).Msg("error while scanning")
