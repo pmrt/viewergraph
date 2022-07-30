@@ -29,6 +29,18 @@ type Event struct {
 	Referrer string
 }
 
+type UserFlowDst struct {
+	Ts       time.Time
+	Referrer string
+	Total    uint64
+}
+
+type UserFlowSrc struct {
+	Ts      time.Time
+	Channel string
+	Total   uint64
+}
+
 func InsertViewers(db *sql.DB, vw *Viewers) error {
 	l := utils.Logger("query")
 
@@ -109,4 +121,46 @@ func ReconcileEvents(db *sql.DB, lastAt time.Time, window time.Duration) error {
 
 	fmt.Print(spew.Sdump(row))
 	return nil
+}
+
+func UserFlowsByDstHourly(db *sql.DB, channel string, from, to time.Time) ([]*UserFlowDst, error) {
+	l := utils.Logger("query", "q", "UserFlowsByDstHourly")
+
+	const max = 20
+	rows, err := db.Query(`
+    SELECT
+      ts, referrer,
+      uniqMerge(total_users) as total
+    FROM aggregated_flows_by_dst
+    WHERE
+      channel = @Channel AND
+      ts >= @From AND
+      ts <= @To
+    GROUP BY ts, referrer
+    ORDER BY ts ASC, total DESC
+    LIMIT @Max
+  `,
+		sql.Named("Channel", channel),
+		sql.Named("From", from),
+		sql.Named("To", to),
+		sql.Named("Max", max),
+	)
+	if err != nil {
+		l.Error().Err(err).Msg("error while executing query")
+		return nil, err
+	}
+
+	r := make([]*UserFlowDst, 0, max)
+	for rows.Next() {
+		flow := new(UserFlowDst)
+		if err := rows.Scan(
+			&flow.Ts,
+			&flow.Referrer,
+			&flow.Total,
+		); err != nil {
+			l.Error().Err(err).Msg("error while scanning")
+		}
+		r = append(r, flow)
+	}
+	return r, nil
 }

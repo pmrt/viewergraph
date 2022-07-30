@@ -9,10 +9,24 @@ import (
 	l "github.com/rs/zerolog/log"
 )
 
-func Logger(ctx string) zerolog.Logger {
-	return l.With().
-		Str("context", ctx).
-		Logger()
+// Logger is a helper func for creating a zerolog.Logger with common context
+// fields. `ctx` adds the field "context"=`ctx` to the logger. `fields` is an
+// optional slice of strings which contains pairs of key, value for custom
+// fields
+//
+// For example: utils.Logger("app", "status", "online")
+func Logger(ctx string, fields ...string) zerolog.Logger {
+	l := l.With().
+		Str("context", ctx)
+
+	ln := len(fields)
+	if ln%2 != 0 {
+		panic("Pass fields in pairs of key, value to utils.Logger()")
+	}
+	for i, j := 0, 1; j < ln; i, j = i+1, j+1 {
+		l.Str(fields[i], fields[j])
+	}
+	return l.Logger()
 }
 
 // CV computes the coefficient of variation of the set of values in `s`.

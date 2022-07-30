@@ -81,10 +81,12 @@ func insertRawEvent(ts, username, channel, evttype string) {
 	)
 }
 
-func TestReconcile(t *testing.T) {
+func TestReconcileTimings(t *testing.T) {
 	t.Cleanup(func() {
 		cleanTable("raw_events")
 		cleanTable("events")
+		cleanTable("aggregated_flows_by_dst")
+		cleanTable("aggregated_flows_by_src")
 	})
 
 	/*
@@ -212,6 +214,110 @@ func TestReconcileSameTime(t *testing.T) {
 	want := []*Event{
 		{Ts: parseTime("2020-10-11T10:00:00Z"), Username: "user1", Channel: "alexelcapo", Referrer: "jujalag"},
 		{Ts: parseTime("2020-10-11T10:00:00Z"), Username: "user1", Channel: "jujalag", Referrer: "alexelcapo"},
+	}
+	if diff := deep.Equal(got, want); diff != nil {
+		t.Fatal(diff)
+	}
+}
+
+func TestFlowsDstHourly(t *testing.T) {
+	t.Cleanup(func() {
+		cleanTable("raw_events")
+		cleanTable("events")
+		cleanTable("aggregated_flows_by_dst")
+		cleanTable("aggregated_flows_by_src")
+	})
+
+	insertRawEvent(
+		"2020-10-11T08:00:00Z",
+		"user1",
+		"jujalag",
+		"view",
+	)
+	insertRawEvent(
+		"2020-10-11T08:00:00Z",
+		"user2",
+		"jujalag",
+		"view",
+	)
+	insertRawEvent(
+		"2020-10-11T10:00:00Z",
+		"user3",
+		"felipez",
+		"view",
+	)
+	insertRawEvent(
+		"2020-10-11T08:00:00Z",
+		"user4",
+		"jujalag",
+		"view",
+	)
+	insertRawEvent(
+		"2020-10-11T09:00:00Z",
+		"user5",
+		"felipez",
+		"view",
+	)
+	insertRawEvent(
+		"2020-10-11T10:00:00Z",
+		"user1",
+		"alexelcapo",
+		"view",
+	)
+	insertRawEvent(
+		"2020-10-11T10:00:00Z",
+		"user2",
+		"alexelcapo",
+		"view",
+	)
+	insertRawEvent(
+		"2020-10-11T10:00:00Z",
+		"user3",
+		"alexelcapo",
+		"view",
+	)
+	insertRawEvent(
+		"2020-10-11T10:00:00Z",
+		"user4",
+		"alexelcapo",
+		"view",
+	)
+	insertRawEvent(
+		"2020-10-11T10:00:00Z",
+		"user5",
+		"alexelcapo",
+		"view",
+	)
+	insertRawEvent(
+		"2020-10-11T10:00:00Z",
+		"user6",
+		"yuste",
+		"view",
+	)
+	insertRawEvent(
+		"2020-10-11T12:00:00Z",
+		"user6",
+		"alexelcapo",
+		"view",
+	)
+	if err := ReconcileEvents(db, time.Time{}, 2*time.Hour); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := UserFlowsByDstHourly(
+		db,
+		"alexelcapo",
+		parseTime("2020-10-11T08:00:00Z"),
+		parseTime("2020-10-11T12:00:00Z"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := []*UserFlowDst{
+		{Ts: parseTime("2020-10-11T10:00:00Z"), Referrer: "jujalag", Total: 3},
+		{Ts: parseTime("2020-10-11T10:00:00Z"), Referrer: "felipez", Total: 2},
+		{Ts: parseTime("2020-10-11T12:00:00Z"), Referrer: "yuste", Total: 1},
 	}
 	if diff := deep.Equal(got, want); diff != nil {
 		t.Fatal(diff)
