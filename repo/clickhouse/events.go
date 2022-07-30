@@ -113,13 +113,16 @@ func ReconcileEvents(db *sql.DB, lastAt time.Time, window time.Duration) error {
     )
     WHERE
       length(referrers) > 0 AND referrer != channel
-    ORDER BY (channel, ts, referrer)
+    ORDER BY (channel, ts, referrer, username)
   `,
 		sql.Named("WindowSeconds", window.Seconds()),
 		sql.Named("Since", since),
 	)
-
-	fmt.Print(spew.Sdump(row))
+	if err := row.Err(); err != nil {
+		if err != io.EOF {
+			return err
+		}
+	}
 	return nil
 }
 

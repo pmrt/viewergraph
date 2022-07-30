@@ -220,6 +220,90 @@ func TestReconcileSameTime(t *testing.T) {
 	}
 }
 
+func TestReconcileMultipleUsers(t *testing.T) {
+	t.Cleanup(func() {
+		cleanTable("raw_events")
+		cleanTable("events")
+		cleanTable("aggregated_flows_by_dst")
+		cleanTable("aggregated_flows_by_src")
+	})
+
+	insertRawEvent(
+		"2020-10-11T07:00:00Z",
+		"user1",
+		"alexelcapo",
+		"view",
+	)
+	insertRawEvent(
+		"2020-10-11T07:00:00Z",
+		"user2",
+		"alexelcapo",
+		"view",
+	)
+	insertRawEvent(
+		"2020-10-11T07:00:00Z",
+		"user3",
+		"alexelcapo",
+		"view",
+	)
+	insertRawEvent(
+		"2020-10-11T08:00:00Z",
+		"user1",
+		"jujalag",
+		"view",
+	)
+	insertRawEvent(
+		"2020-10-11T08:00:00Z",
+		"user2",
+		"jujalag",
+		"view",
+	)
+	insertRawEvent(
+		"2020-10-11T08:00:00Z",
+		"user3",
+		"chuso",
+		"view",
+	)
+
+	if err := ReconcileEvents(db, time.Time{}, 2*time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	row := db.QueryRow("OPTIMIZE TABLE events")
+	if err := row.Err(); err != nil {
+		if err != io.EOF {
+			t.Fatal(err)
+		}
+	}
+
+	rows, err := db.Query("SELECT toTimeZone(ts, 'UTC'), username, channel, referrer FROM events ORDER BY username")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]*Event, 0, 3)
+	for rows.Next() {
+		evt := new(Event)
+		if err := rows.Scan(
+			&evt.Ts,
+			&evt.Username,
+			&evt.Channel,
+			&evt.Referrer,
+		); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, evt)
+	}
+
+	want := []*Event{
+		{Ts: parseTime("2020-10-11T08:00:00Z"), Username: "user1", Channel: "jujalag", Referrer: "alexelcapo"},
+		{Ts: parseTime("2020-10-11T08:00:00Z"), Username: "user2", Channel: "jujalag", Referrer: "alexelcapo"},
+		{Ts: parseTime("2020-10-11T08:00:00Z"), Username: "user3", Channel: "chuso", Referrer: "alexelcapo"},
+	}
+	if diff := deep.Equal(got, want); diff != nil {
+		t.Fatal(diff)
+	}
+
+}
+
 func TestFlowsDstHourly(t *testing.T) {
 	t.Cleanup(func() {
 		cleanTable("raw_events")
