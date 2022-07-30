@@ -1,17 +1,34 @@
 package clickhouse
 
 import (
+	"database/sql"
+	"io"
 	"testing"
 	"time"
 
 	"github.com/go-test/deep"
 )
 
-func TestInsertViewers(t *testing.T) {
-	ts, err := time.Parse(time.RFC3339, "2020-10-11T10:30:20.123Z")
+func cleanTable(table string) {
+	// Probably very unsafe and vulnerable to SQL Injections but it is just for
+	// testing. We can't pass table names as parameters.
+	_ = db.QueryRow("TRUNCATE TABLE " + table)
+}
+
+func parseTime(timestr string) time.Time {
+	ts, err := time.Parse(time.RFC3339, timestr)
 	if err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
+	return ts
+}
+
+func TestInsertViewers(t *testing.T) {
+	t.Cleanup(func() {
+		cleanTable("raw_events")
+	})
+
+	ts := parseTime("2020-10-11T10:30:20.123Z")
 
 	vw := &Viewers{
 		ts:      ts,
@@ -41,16 +58,103 @@ func TestInsertViewers(t *testing.T) {
 		got = append(got, evt)
 	}
 
-	wantTs, err := time.Parse(time.RFC3339, "2020-10-11T10:00:00Z")
-	if err != nil {
-		t.Fatal(err)
-	}
+	wantTs := parseTime("2020-10-11T10:00:00Z")
 	want := []*RawEvent{
 		{Ts: wantTs, Username: "user1", Channel: "streamer1", EventType: "view"},
 		{Ts: wantTs, Username: "user2", Channel: "streamer1", EventType: "view"},
 		{Ts: wantTs, Username: "user3", Channel: "streamer1", EventType: "view"},
 		{Ts: wantTs, Username: "user4", Channel: "streamer1", EventType: "view"},
 		{Ts: wantTs, Username: "user5", Channel: "streamer1", EventType: "view"},
+	}
+	if diff := deep.Equal(got, want); diff != nil {
+		t.Fatal(diff)
+	}
+}
+
+func insertRawEvent(ts, username, channel, evttype string) {
+	_ = db.QueryRow(
+		"INSERT INTO raw_events VALUES (@Ts, @Username, @Channel, @EvtType)",
+		sql.Named("Ts", parseTime(ts)),
+		sql.Named("Username", username),
+		sql.Named("Channel", channel),
+		sql.Named("EvtType", evttype),
+	)
+}
+
+func TestReconcile(t *testing.T) {
+	t.Cleanup(func() {
+		cleanTable("raw_events")
+		cleanTable("events")
+	})
+
+	/*
+	            10          11          12          13          15
+	  events:   |                       |           |           |
+	  recon.:                 |                       |                |
+	*/
+
+	insertRawEvent(
+		"2020-10-11T10:00:00Z",
+		"user1",
+		"alexelcapo",
+		"view",
+	)
+	if err := ReconcileEvents(db, time.Time{}, 2*time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	insertRawEvent(
+		"2020-10-11T12:00:00Z",
+		"user1",
+		"jujalag",
+		"view",
+	)
+	insertRawEvent(
+		"2020-10-11T13:00:00Z",
+		"user1",
+		"chuso",
+		"view",
+	)
+	if err := ReconcileEvents(db, parseTime("2020-10-11T11:05:00Z"), 2*time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	insertRawEvent(
+		"2020-10-11T15:00:00Z",
+		"user1",
+		"yuste",
+		"view",
+	)
+	if err := ReconcileEvents(db, parseTime("2020-10-11T13:05:00Z"), 2*time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	row := db.QueryRow("OPTIMIZE TABLE events")
+	if err := row.Err(); err != nil {
+		if err != io.EOF {
+			t.Fatal(err)
+		}
+	}
+
+	rows, err := db.Query("SELECT toTimeZone(ts, 'UTC'), username, channel, referrer FROM events ORDER BY ts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]*Event, 0, 3)
+	for rows.Next() {
+		evt := new(Event)
+		if err := rows.Scan(
+			&evt.Ts,
+			&evt.Username,
+			&evt.Channel,
+			&evt.Referrer,
+		); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, evt)
+	}
+
+	want := []*Event{
+		{Ts: parseTime("2020-10-11T12:00:00Z"), Username: "user1", Channel: "jujalag", Referrer: "alexelcapo"},
+		{Ts: parseTime("2020-10-11T13:00:00Z"), Username: "user1", Channel: "chuso", Referrer: "jujalag"},
+		{Ts: parseTime("2020-10-11T15:00:00Z"), Username: "user1", Channel: "yuste", Referrer: "chuso"},
 	}
 	if diff := deep.Equal(got, want); diff != nil {
 		t.Fatal(diff)
