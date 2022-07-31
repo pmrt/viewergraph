@@ -9,7 +9,7 @@ import (
 )
 
 type Viewers struct {
-	ts      time.Time
+	Ts      time.Time
 	Viewers []string
 	Channel string
 }
@@ -57,7 +57,7 @@ func InsertViewers(db *sql.DB, vw *Viewers) error {
 
 	// we round time to start of hour for aggregation purposes. Hour is the
 	// smallest unit we will be storing in the database.
-	t := time.Date(vw.ts.Year(), vw.ts.Month(), vw.ts.Day(), vw.ts.Hour(), 0, 0, 0, vw.ts.Location())
+	t := time.Date(vw.Ts.Year(), vw.Ts.Month(), vw.Ts.Day(), vw.Ts.Hour(), 0, 0, 0, vw.Ts.Location())
 	for _, usr := range vw.Viewers {
 		if _, err := stmt.Exec(t, usr, vw.Channel, "view"); err != nil {
 			l.Error().Err(err).Msg("error while adding values to the batch")

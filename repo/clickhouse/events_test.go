@@ -31,7 +31,7 @@ func TestInsertViewers(t *testing.T) {
 	ts := parseTime("2020-10-11T10:30:20.123Z")
 
 	vw := &Viewers{
-		ts:      ts,
+		Ts:      ts,
 		Viewers: []string{"user1", "user2", "user3", "user4", "user5"},
 		Channel: "streamer1",
 	}

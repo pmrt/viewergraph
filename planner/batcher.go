@@ -5,6 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
+
+	"github.com/pmrt/viewergraph/database"
+	"github.com/pmrt/viewergraph/repo/clickhouse"
 )
 
 var ErrUnexpectedProp = errors.New("unexpected property")
@@ -20,6 +24,19 @@ var (
 	}
 )
 
+// StreamBatcher parses the JSON object from the unofficial endpoint:
+// tmi.twitch.tv/group/user/<user>/chatters and handles batching and inserting
+// to the storage layer.
+//
+// Parsing, batching and inserting are performed in streaming mode from a
+// reader. They are inserted as they are read every MaxQueueSize items, after
+// the end of the slice or after the entire object is read if items length <
+// MaxQueueSize. MaxQueueSize is also the maximum size of items in memory that
+// StreamBatcher will use, it does not load the entire slice of items if the
+// length > MaxQueueSize.
+//
+// Each StreamBatcher is 1:1 to each channel streaming. StreamBatcher is not
+// thread safe.
 type StreamBatcher struct {
 	queue       []string
 	queueCount  uint64
@@ -27,12 +44,12 @@ type StreamBatcher struct {
 	flushCount  uint64
 	size        uint64
 
-	FlushFunc func(queue []string)
+	FlushFunc func(sto database.Storage, queue []string, channel string) error
 
 	MaxQueueSize uint64
+	Channel      string
+	sto          database.Storage
 }
-
-// TODO - qué pasa si count no es 0 pero recibo más elementos que count?
 
 // Enqueue the given `usr` item.
 //
@@ -65,7 +82,7 @@ func (b *StreamBatcher) Flush() {
 	if b.queueCount == 0 {
 		return
 	}
-	b.FlushFunc(b.queue)
+	b.FlushFunc(b.sto, b.queue, b.Channel)
 
 	b.queue = nil
 	b.queueCount = 0
@@ -117,7 +134,9 @@ func (b *StreamBatcher) Batch(r io.Reader) error {
 				switch tk {
 				case OpenBracket, OpenBrace, CloseBracket, CloseBrace:
 				case "broadcaster":
-					skip(dec)
+					if err := skip(dec); err != nil {
+						return err
+					}
 				case "vips", "moderators", "viewers", "staff", "admins", "global_mods":
 					for {
 						tk, err = dec.Token()
@@ -157,14 +176,20 @@ func (b *StreamBatcher) Batch(r io.Reader) error {
 	return nil
 }
 
-func flusher(queue []string) {
-
+func flusher(sto database.Storage, queue []string, channel string) error {
+	return clickhouse.InsertViewers(sto.Conn(), &clickhouse.Viewers{
+		Ts:      time.Now(),
+		Viewers: queue,
+		Channel: channel,
+	})
 }
 
-func NewStreamBatcher() *StreamBatcher {
+func NewStreamBatcher(sto database.Storage, channel string, batchSize uint64) *StreamBatcher {
 	return &StreamBatcher{
-		MaxQueueSize: 100000,
+		MaxQueueSize: batchSize,
 		FlushFunc:    flusher,
+		Channel:      channel,
+		sto:          sto,
 	}
 }
 
@@ -193,7 +218,6 @@ func max(a, b uint64) uint64 {
 	return b
 }
 
-// TODO - max bytes read
 func skip(dec *json.Decoder) error {
 	n := 0
 	for {
