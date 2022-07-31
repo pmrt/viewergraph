@@ -9,6 +9,17 @@ import (
 
 var ErrUnexpectedProp = errors.New("unexpected property")
 
+var (
+	OpenBracket  = json.Delim('[')
+	CloseBracket = json.Delim(']')
+	OpenBrace    = json.Delim('{')
+	CloseBrace   = json.Delim('}')
+
+	Closing = []json.Delim{
+		CloseBrace, CloseBrace,
+	}
+)
+
 type StreamBatcher struct {
 	queue       []string
 	queueCount  uint64
@@ -68,7 +79,7 @@ func (b *StreamBatcher) Batch(r io.Reader) error {
 		return err
 	}
 	if delim, ok := tk.(json.Delim); !ok || delim != '{' {
-		return errors.New("expected JSON object at first token")
+		return fmt.Errorf("expected JSON object at first token, got %s", tk)
 	}
 
 	for dec.More() {
@@ -76,12 +87,8 @@ func (b *StreamBatcher) Batch(r io.Reader) error {
 		if err != nil {
 			return err
 		}
-		key, ok := tk.(string)
-		if !ok {
-			return fmt.Errorf("expected string at offset %d", dec.InputOffset())
-		}
 
-		switch key {
+		switch tk {
 		case "chatter_count":
 			// If provided, set ChatterSize. If we know the exact length we will
 			// save allocation size and we won't need additional flushes. See
@@ -97,49 +104,51 @@ func (b *StreamBatcher) Batch(r io.Reader) error {
 			}
 			continue
 		case "_links":
-			continue
+			if err := skip(dec); err != nil {
+				return err
+			}
 		case "chatters":
 			for dec.More() {
 				tk, err = dec.Token()
 				if err != nil {
 					return err
 				}
-				key, ok = tk.(string)
-				if !ok {
-					return fmt.Errorf("expected string at offset %d", dec.InputOffset())
-				}
 
-				switch key {
+				switch tk {
+				case OpenBracket, OpenBrace, CloseBracket, CloseBrace:
 				case "broadcaster":
-					continue
-				case "vips":
-				case "moderators":
-				case "viewers":
-				case "staff":
-				case "admins":
-				case "global_mods":
-					for dec.More() {
-						var val string
-						if err := dec.Decode(&val); err != nil {
+					skip(dec)
+				case "vips", "moderators", "viewers", "staff", "admins", "global_mods":
+					for {
+						tk, err = dec.Token()
+						if err != nil {
 							return err
 						}
-						b.Enqueue(val)
+						if tk == CloseBracket {
+							break
+						}
+						if usr, ok := tk.(string); ok {
+							b.Enqueue(usr)
+						}
 					}
 				default:
-					return fmt.Errorf("%w: '%s'", ErrUnexpectedProp, key)
+					return fmt.Errorf("%w: '%s'", ErrUnexpectedProp, tk)
 				}
 			}
 		default:
-			return fmt.Errorf("%w: '%s'", ErrUnexpectedProp, key)
+			return fmt.Errorf("%w: '%s'", ErrUnexpectedProp, tk)
 		}
 	}
 
-	tk, err = dec.Token()
-	if err != nil {
-		return err
-	}
-	if delim, ok := tk.(json.Delim); !ok || delim != '}' {
-		return errors.New("expected JSON object at last token")
+	for _, delim := range Closing {
+		tk, err := dec.Token()
+		if err != nil {
+			return err
+		}
+
+		if tk != delim {
+			return fmt.Errorf("closing: expected %s at offset %d, got %s", delim, dec.InputOffset(), tk)
+		}
 	}
 
 	// If ChatterSize wasn't provided we need an extra flush to ensure we don't
@@ -182,4 +191,26 @@ func max(a, b uint64) uint64 {
 		return a
 	}
 	return b
+}
+
+// TODO - max bytes read
+func skip(dec *json.Decoder) error {
+	n := 0
+	for {
+		tk, err := dec.Token()
+		if err != nil {
+			return err
+		}
+
+		switch tk {
+		case OpenBracket, OpenBrace:
+			n++
+		case CloseBracket, CloseBrace:
+			n--
+		}
+
+		if n == 0 {
+			return nil
+		}
+	}
 }
